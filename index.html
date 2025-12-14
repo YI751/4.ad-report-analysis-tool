@@ -710,6 +710,7 @@ ${jsonFormat}
                                         <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><Icons.Upload className="w-8 h-8 text-blue-600" /></div>
                                         <p className="text-base text-slate-700 font-bold">レポートファイルをアップロード</p>
                                         <p className="text-sm text-slate-500 mt-1">Excel / CSV / PDF 対応</p>
+                                         <p className="text-xs text-blue-500 font-bold mt-2">※「今月」と「先月」など、複数のファイルをアップロードすると比較分析を行います</p>
                                     </div>
                                     {files.length > 0 && <div className="flex flex-wrap gap-2 animate-fade-in">{files.map((f, i) => <span key={i} className="text-sm bg-slate-100 border border-slate-200 text-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm"><Icons.FileText className="w-4 h-4 text-blue-500" />{f.name}<button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-500 ml-1"><Icons.Trash2 className="w-4 h-4" /></button></span>)}</div>}
                                     
@@ -826,4 +827,5 @@ ${jsonFormat}
         root.render(<App />);
     </script>
 </body>
+
 </html>
