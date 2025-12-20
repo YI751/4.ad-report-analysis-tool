@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdReportAI Ver1.1</title>
+    <title>AdReportAI Ver1.0</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -584,13 +584,17 @@
 
                     let modeInstruction = "";
                     if (mode === 'general_cv') {
-                        modeInstruction = "【モード：他業種 (CVあり)】CV数とCPA（獲得単価）を最重要指標として分析してください。費用対効果を厳しく評価してください。";
+                        // 修正: CVRを明記
+                        modeInstruction = "【モード：他業種 (CVあり)】CV数、獲得率(CVR)、CPA（獲得単価）を最重要指標として分析してください。費用対効果を厳しく評価してください。";
                     } else if (mode === 'general_branding') {
+                        // 現状維持
                         modeInstruction = "【モード：他業種 (CVなし)】認知拡大が目的です。**獲得件数(CV)や獲得単価(CPA)への言及は避けてください。** 表示回数(Imp)、クリック数(Click)、クリック率(CTR)、クリック単価(CPC)、リーチ数を中心に評価してください。";
                     } else if (mode === 'pachinko') {
-                        modeInstruction = "【モード：パチンコホール分析（CVあり）】「CV」は「来店」「稼働」と読み替えてください。「CPA」は「来店獲得単価」と読み替えてください。新台入替や特定日の集客効果を重視してください。";
+                        // 修正: CVRの読み替えと、IMP/CTRへの意識を追加
+                        modeInstruction = "【モード：パチンコホール分析（CVあり）】店舗集客型ビジネスの分析です。「CV」は「来店」「稼働」、「CVR」は「来店率」、「CPA」は「来店獲得単価」と読み替えてください。IMPやCTRなどの認知指標と合わせて、最終的な来店効果を重視して分析してください。";
                     } else if (mode === 'pachinko_no_cv') {
-                        modeInstruction = "【モード：パチンコホール分析（CVなし）】あなたはエリアマーケティングの専門家です。**店舗への来店コンバージョン(CV)や獲得単価(CPA)への言及は避けてください（計測していないため）。** 代わりに、**商圏内でのリーチ数（Imp）**、**認知獲得効率（CPM）**、**興味関心度（CTR, クリック数）**を最重要指標として評価してください。チラシ投函の代替手段として、どれだけ効率よくエリアユーザーに情報を届けられたか、という視点でポジティブに分析してください。";
+                        // 修正: 店舗集客型ビジネスを明記
+                        modeInstruction = "【モード：パチンコホール分析（CVなし）】あなたは店舗集客型ビジネス（エリアマーケティング）の専門家です。**店舗への来店コンバージョン(CV)や獲得単価(CPA)への言及は避けてください（計測していないため）。** 代わりに、**商圏内でのリーチ数（Imp）**、**認知獲得効率（CPM）**、**興味関心度（CTR, クリック数）**を最重要指標として評価してください。チラシ投函の代替手段として、どれだけ効率よくエリアユーザーに情報を届けられたか、という視点でポジティブに分析してください。";
                     }
 
                     const prompt = `
