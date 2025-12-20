@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdReportAI Ver1.0</title>
+    <title>AdReportAI Ver1.1</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -583,9 +583,15 @@
                     }
 
                     let modeInstruction = "";
-                    if (mode === 'general_cv') modeInstruction = "【モード：他業種 (CVあり)】CV数とCPA（獲得単価）を最重要指標として分析してください。費用対効果を厳しく評価してください。";
-                    else if (mode === 'general_branding') modeInstruction = "【モード：他業種 (CVなし)】認知拡大が目的です。**獲得件数(CV)や獲得単価(CPA)への言及は避けてください。** 表示回数(Imp)、クリック数(Click)、クリック率(CTR)、クリック単価(CPC)、リーチ数を中心に評価してください。";
-                    else if (mode === 'pachinko') modeInstruction = "【モード：パチンコホール分析】「CV」は「来店」「稼働」と読み替えてください。「CPA」は「来店獲得単価」と読み替えてください。新台入替や特定日の集客効果を重視してください。";
+                    if (mode === 'general_cv') {
+                        modeInstruction = "【モード：他業種 (CVあり)】CV数とCPA（獲得単価）を最重要指標として分析してください。費用対効果を厳しく評価してください。";
+                    } else if (mode === 'general_branding') {
+                        modeInstruction = "【モード：他業種 (CVなし)】認知拡大が目的です。**獲得件数(CV)や獲得単価(CPA)への言及は避けてください。** 表示回数(Imp)、クリック数(Click)、クリック率(CTR)、クリック単価(CPC)、リーチ数を中心に評価してください。";
+                    } else if (mode === 'pachinko') {
+                        modeInstruction = "【モード：パチンコホール分析（CVあり）】「CV」は「来店」「稼働」と読み替えてください。「CPA」は「来店獲得単価」と読み替えてください。新台入替や特定日の集客効果を重視してください。";
+                    } else if (mode === 'pachinko_no_cv') {
+                        modeInstruction = "【モード：パチンコホール分析（CVなし）】あなたはエリアマーケティングの専門家です。**店舗への来店コンバージョン(CV)や獲得単価(CPA)への言及は避けてください（計測していないため）。** 代わりに、**商圏内でのリーチ数（Imp）**、**認知獲得効率（CPM）**、**興味関心度（CTR, クリック数）**を最重要指標として評価してください。チラシ投函の代替手段として、どれだけ効率よくエリアユーザーに情報を届けられたか、という視点でポジティブに分析してください。";
+                    }
 
                     const prompt = `
 あなたはプロフェッショナルなWEB広告アナリストです。以下のデータを分析し、JSON形式で出力してください。
@@ -734,7 +740,11 @@ ${userContext}
                                             </label>
                                             <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${mode === 'pachinko' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                                                 <input type="radio" name="mode" value="pachinko" checked={mode === 'pachinko'} onChange={e => setMode(e.target.value)} className="text-blue-600" />
-                                                <div><span className="block text-sm font-bold text-slate-800">パチンコホール分析</span><span className="block text-xs text-slate-500">来店・稼働重視</span></div>
+                                                <div><span className="block text-sm font-bold text-slate-800">パチンコホール分析 (CVあり)</span><span className="block text-xs text-slate-500">来店・稼働重視</span></div>
+                                            </label>
+                                            <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${mode === 'pachinko_no_cv' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                                <input type="radio" name="mode" value="pachinko_no_cv" checked={mode === 'pachinko_no_cv'} onChange={e => setMode(e.target.value)} className="text-blue-600" />
+                                                <div><span className="block text-sm font-bold text-slate-800">パチンコホール分析 (CVなし)</span><span className="block text-xs text-slate-500">IMP/CPM/CTR重視</span></div>
                                             </label>
                                         </div>
                                     </div>
