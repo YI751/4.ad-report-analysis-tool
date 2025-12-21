@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdReportAI Ver1.0</title>
+    <title>AdReportAI Ver1.7 (Date Sort Fixed)</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -515,17 +515,34 @@
                 setLoadingStates(prev => ({ ...prev, [sectionId]: true }));
                 try {
                     let rawData = "";
+                    // ★ DATE SORT LOGIC (Robust Fix for Single Digit Months)
                     const sortedFiles = [...files].sort((a, b) => {
                         const extractDate = (filename) => {
-                            const match = filename.match(/(\d{4})[-年/.]?(\d{2})/) || filename.match(/(\d{4})(\d{2})/);
-                            if (match) return parseInt(match[1] + match[2]); 
-                            return 0;
+                            // Pattern 1: Separated (e.g. 2025-9, 2025年10月, 2025.1)
+                            // Look for 4 digits (year), any non-digits, then 1 or 2 digits (month)
+                            let match = filename.match(/(\d{4})\D+(\d{1,2})/);
+                            
+                            // Pattern 2: Continuous 6 digits (e.g. 202509, 202510)
+                            if (!match) {
+                                match = filename.match(/(\d{4})(\d{2})/);
+                            }
+
+                            if (match) {
+                                const year = parseInt(match[1]);
+                                const month = parseInt(match[2]);
+                                // Return integer YYYYMM for correct comparison
+                                // (e.g., 2025*100 + 9 = 202509 vs 2025*100 + 10 = 202510)
+                                return year * 100 + month;
+                            }
+                            return 0; // Default if no date found
                         };
+                        // Sort Descending (Newest date first)
                         return extractDate(b.name) - extractDate(a.name);
                     });
 
                     sortedFiles.forEach((file, index) => {
                         if (fileContents[file.name]) {
+                            // Index 0 is the newest date (Main Target)
                             const role = index === 0 ? "【分析対象（最新・当月）レポート】" : "【比較対象（過去・前月）レポート】";
                             rawData += `\n\n=== FILE (${role}): ${file.name} ===\n${fileContents[file.name]}`;
                         }
@@ -568,18 +585,51 @@
 `;
                     let analysisFocus = "";
                     let graphFocus = "";
+                    // ★Deep Analysis: プロンプトを大幅に具体化し、深い分析を強制する
                     switch (sectionId) {
-                        case 'summary': analysisFocus = "広告アカウント全体の健康診断。CPA, CV, ROASなどのKPI達成状況、予算消化率、媒体ごとの成果偏り。個別のキーワードやクリエイティブの細かい話は禁止。"; graphFocus = "「表示回数(value)」「クリック数(value2)」「CV数(value3)」の3つを表示する折れ線グラフ (Line)。左軸に表示回数、右軸にその他。"; break;
-                        case 'comparisonMoM': analysisFocus = "前月（過去）と比較した良化・悪化ポイントとその要因（季節性、日数、入札変更など）。"; graphFocus = "「主要指標の期間比較（Bar）」"; break;
-                        case 'comparisonYoY': analysisFocus = "昨対比での成長率、長期トレンド。"; graphFocus = "「昨対比の主要指標比較（Bar）」"; break;
-                        case 'timeSeries': analysisFocus = "日次・週次の波。スパイクの原因、予算消化ペース。"; graphFocus = "「表示回数(value)とクリック数(value2)の2軸推移(Line)」または「コスト(value)とCV数(value2)の推移(Line)」"; break;
-                        case 'dayTime': analysisFocus = "CVしやすい曜日・時間帯と、無駄なコストが発生している時間帯。"; graphFocus = "「時間帯別の獲得数（Bar）」または「曜日別のCPA（Bar）」"; break;
-                        case 'campaigns': analysisFocus = "キャンペーンごとの成果バラつき。予算配分の最適化。"; graphFocus = "「キャンペーン別獲得数ランキング（Ranking）」または「キャンペーン別CPA比較（Bar）」"; break;
-                        case 'creatives': analysisFocus = "画像、動画、広告文ごとのCTR・CVRの違い。勝ちパターンの言語化。"; graphFocus = "「クリエイティブ（訴求軸）別CTR/CVR比較（Ranking）」"; break;
-                        case 'keywords': analysisFocus = "検索クエリ（インサイト）。CVに至ったキーワードと除外すべきキーワード。"; graphFocus = "「獲得キーワードランキング（Ranking）」または「検索クエリ別コスト（Ranking）」"; break;
-                        case 'attributes': analysisFocus = "性別・年齢・地域ごとのCPA差。ターゲットとのズレ。"; graphFocus = "「年齢・性別の獲得構成比（Pie）」または「属性別CPA比較（Bar）」"; break;
-                        case 'devices': analysisFocus = "PCとスマホのCVR/CTR差。デバイスごとの入札調整。"; graphFocus = "「デバイス別獲得構成比（Pie）」または「デバイス別CVR比較（Bar）」"; break;
-                        default: analysisFocus = "現状の数値を詳細に分析し、課題と改善策を提示。"; graphFocus = "「このセクションの分析に最も適したグラフ」";
+                        case 'summary': 
+                            analysisFocus = "広告アカウント全体の「健康診断」レポートです。単なる数値報告ではなく、KPI達成状況に基づいた「評価（良/悪）」を明確に下してください。予算消化率、CPA/ROASの目標乖離、最も成果に貢献した媒体と足を引っ張った媒体の特定を行ってください。また、特筆すべき数値の変動（急増・急減）があればその要因を仮説立てて説明してください。"; 
+                            graphFocus = "「表示回数(value)」「クリック数(value2)」「CV数(value3)」の3つを表示する折れ線グラフ (Line)。左軸に表示回数、右軸にその他。"; 
+                            break;
+                        case 'comparisonMoM': 
+                            analysisFocus = "前月（または比較期間）との比較分析です。数値の増減（Diff）だけでなく、「なぜ増えた/減ったのか」を因数分解してください（例: CPAが高騰した要因は、CPCの上昇なのかCVRの低下なのか？）。季節要因、営業日数の違い、キャンペーンの有無、入札調整の影響などを考慮し、変化の本質的な理由を突き止めてください。"; 
+                            graphFocus = "「主要指標の期間比較（Bar）」"; 
+                            break;
+                        case 'comparisonYoY': 
+                            analysisFocus = "前年同月比（昨対比）での分析です。単月のブレではなく、長期的な成長トレンドや市場の変化、季節性の影響を評価してください。昨年実施した施策との違いや、外部環境（競合、法規制など）の変化が数値にどう影響しているかを考察してください。"; 
+                            graphFocus = "「昨対比の主要指標比較（Bar）」"; 
+                            break;
+                        case 'timeSeries': 
+                            analysisFocus = "日次・週次の推移分析です。スパイク（急激な上昇・下降）が発生している日を特定し、その要因（特定日、新台入替、天候、週末効果、広告審査落ち、予算切れなど）を推測してください。日予算のキャップによる機会損失が発生していないか、逆に無駄な配信がないかを確認してください。"; 
+                            graphFocus = "「表示回数(value)とクリック数(value2)の2軸推移(Line)」または「コスト(value)とCV数(value2)の推移(Line)」"; 
+                            break;
+                        case 'dayTime': 
+                            analysisFocus = "曜日・時間帯別分析です。最もCV効率が良い「ゴールデンタイム」と、逆にコストを垂れ流している「魔の時間帯」を特定してください。ビジネスタイムとプライベートタイムの差、土日の傾向などを分析し、配信スケジュールの最適化案（入札強化・抑制・停止）を提示してください。"; 
+                            graphFocus = "「時間帯別の獲得数（Bar）」または「曜日別のCPA（Bar）」"; 
+                            break;
+                        case 'campaigns': 
+                            analysisFocus = "キャンペーン単位でのパフォーマンス分析です。予算配分の適切性を評価してください。「CPAが安くCV獲得できているのに予算不足で抑制されているキャンペーン」への増額提案や、「CPAが高騰しており成果が見合わないキャンペーン」の停止・縮小提案を行ってください。"; 
+                            graphFocus = "「キャンペーン別獲得数ランキング（Ranking）」または「キャンペーン別CPA比較（Bar）」"; 
+                            break;
+                        case 'creatives': 
+                            analysisFocus = "クリエイティブ（画像・動画・広告文）の分析です。「勝ちクリエイティブ」に共通する要素（色使い、訴求軸、人物の有無、テキストの煽りなど）を言語化してください。また、CTRは高いがCVRが低い「釣りクリエイティブ（LPとの乖離）」や、摩耗して成果が落ちてきたクリエイティブへの警告を行ってください。"; 
+                            graphFocus = "「クリエイティブ（訴求軸）別CTR/CVR比較（Ranking）」"; 
+                            break;
+                        case 'keywords': 
+                            analysisFocus = "検索キーワード（クエリ）分析です。コンバージョンに至った「指名検索」と「一般検索」の比率を確認してください。また、無駄なコストを発生させているキーワード（CV0件でコスト大）を特定し、除外キーワードとして提案してください。"; 
+                            graphFocus = "「獲得キーワードランキング（Ranking）」または「検索クエリ別コスト（Ranking）」"; 
+                            break;
+                        case 'attributes': 
+                            analysisFocus = "ユーザー属性（性別・年齢・地域）分析です。ターゲット層と実際の獲得層にズレがないか確認してください。特定の属性でCPAが高騰している場合、その属性の除外や入札抑制を提案してください。逆に、意外な属性からの反応があれば新たなターゲットとして提案してください。"; 
+                            graphFocus = "「年齢・性別の獲得構成比（Pie）」または「属性別CPA比較（Bar）」"; 
+                            break;
+                        case 'devices': 
+                            analysisFocus = "デバイス別（PC/SP）分析です。スマートフォンとPCでのCVRやCTRの格差を分析してください。スマホ比率が高い場合、LPのスマホ最適化の必要性や、デバイスごとの入札比率調整（スマホ強化など）を提案してください。"; 
+                            graphFocus = "「デバイス別獲得構成比（Pie）」または「デバイス別CVR比較（Bar）」"; 
+                            break;
+                        default: 
+                            analysisFocus = "現状の数値を詳細に分析し、課題と改善策を提示してください。"; 
+                            graphFocus = "「このセクションの分析に最も適したグラフ」";
                     }
 
                     let modeInstruction = "";
@@ -591,12 +641,13 @@
                         modeInstruction = "【モード：他業種 (CVなし)】認知拡大が目的です。**獲得件数(CV)や獲得単価(CPA)への言及は避けてください。** 表示回数(Imp)、クリック数(Click)、クリック率(CTR)、クリック単価(CPC)、リーチ数を中心に評価してください。";
                     } else if (mode === 'pachinko') {
                         // 修正: CVRの読み替えと、IMP/CTRへの意識を追加
-                        modeInstruction = "【モード：パチンコホール分析（CVあり）】店舗集客型ビジネスの分析です。「CV」は「来店」「稼働」、「CVR」は「来店率」、「CPA」は「来店獲得単価」と読み替えてください。IMPやCTRなどの認知指標と合わせて、最終的な来店効果を重視して分析してください。";
+                        modeInstruction = "【モード：パチンコホール分析（CVあり）】店舗集客型ビジネスの分析です。「CV」は「来店」「稼働」、「CVR」は「来店率」、「CPA」は「来店獲得単価」と読み替えてください。新台入替（New Machine）、特定日（Event Days）、週末などのパチンコ業界特有のイベントと数値の相関を強く意識してください。IMPやCTRなどの認知指標と合わせて、最終的な来店効果を重視して分析してください。";
                     } else if (mode === 'pachinko_no_cv') {
                         // 修正: 店舗集客型ビジネスを明記
                         modeInstruction = "【モード：パチンコホール分析（CVなし）】あなたは店舗集客型ビジネス（エリアマーケティング）の専門家です。**店舗への来店コンバージョン(CV)や獲得単価(CPA)への言及は避けてください（計測していないため）。** 代わりに、**商圏内でのリーチ数（Imp）**、**認知獲得効率（CPM）**、**興味関心度（CTR, クリック数）**を最重要指標として評価してください。チラシ投函の代替手段として、どれだけ効率よくエリアユーザーに情報を届けられたか、という視点でポジティブに分析してください。";
                     }
 
+                    // ★Prompt Engineering: Deep Analysis Template
                     const prompt = `
 あなたはプロフェッショナルなWEB広告アナリストです。以下のデータを分析し、JSON形式で出力してください。
 **【分析対象セクション】**: ${sectionConfig.title}
@@ -612,26 +663,32 @@
 2. **「比較対象（過去・前月）レポート」** がある場合は、それを比較基準として使用してください。
 
 **【最重要：レポート文章の執筆ルール（厳守）】**:
-**1. 構成**: 
+**1. 思考プロセス（Deep Analysis）**:
+単に「数値が上がった/下がった」と記述するだけでなく、以下のプロセスで文章を構築してください。
+   - **Observation（観察）**: 事実として何が起きているか（例: CPAが20%悪化した）。
+   - **Insight（洞察）**: なぜそれが起きたのか、データから読み取れる要因は何か（例: クリック単価の高騰が主因で、CVRは横ばいである）。
+   - **Action（提言）**: それに対して何をすべきか（例: 入札戦略の見直しが必要）。
+
+**2. 構成**: 
 必ず「【現状分析】」と「【改善施策】」の2つの見出しで構成してください。
 
-**2. バランス調整（ポジティブファースト）**:
+**3. バランス調整（ポジティブファースト）**:
 - **【現状分析】**では、**「成果が出ている点（ポジティブ）」を全体の約8割**、**「課題点（ネガティブ）」を約2割**のバランスで記述してください。
 - 課題を指摘する際も、ただ否定するのではなく「さらなる改善の余地（伸びしろ）」として前向きに表現してください。
 
-**3. 文体と改行（見やすさの改善）**:
+**4. 文体と改行（見やすさの改善）**:
 - 「〜をご報告します」などの前置きや挨拶は一切不要です。1行目から数値の報告を始めてください。です・ます調を使用してください。
 - **箇条書きを積極的に使用してください。** 読みにくい長文は避け、要点を \`・\` で箇条書きにしてください。
 - **段落（パラグラフ）を意識し、適度なまとまりで改行してください。** 「。」の直後で必ず改行する必要はありませんが、意味のまとまりごとに改行を入れて読みやすくしてください。
 - 空白行を入れすぎないでください。段落の間に1行空ける程度にとどめてください。
 
-**4. 具体性**: 
+**5. 具体性**: 
 - 「良かったです」「悪かったです」という抽象的な表現は禁止です。「CPAが〇〇円から〇〇円へ改善しました」のように必ず数値を伴って記述してください。
 
-**5. Markdown禁止**: 
+**6. Markdown禁止**: 
 - 本文内（\`analysis_text\`）では \`**\` や \`###\` などのMarkdown記号は使用しないでください。見出しは【 】（隅付き括弧）で表現してください。
 
-**6. AI INSIGHT (Concise & Deep Analysis)**:
+**7. AI INSIGHT (Concise & Deep Analysis)**:
 - \`insight\` フィールドには、**深く、鋭い考察**を**300文字以内**で簡潔に記述してください。
 - 結論から先に述べてください（結論ファースト）。
 - 単なる「CPAが上がった」という事実報告ではなく、**「なぜそうなったのか（要因）」**と**「それがビジネスにどう影響するのか（示唆）」**、**「指標間の相関関係（例: CTRは高いがCVRが低い=LPのミスマッチ）」**に踏み込んでください。浅い考察は禁止ですが、長文も禁止です。要点を絞ってください。
@@ -680,7 +737,7 @@ ${userContext}
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `AdReport_Ver1.0_${new Date().toISOString().slice(0,10)}.csv`;
+                a.download = `AdReport_Ver1.7_${new Date().toISOString().slice(0,10)}.csv`;
                 a.click();
             };
 
@@ -692,7 +749,7 @@ ${userContext}
                     <div className="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-20 hidden md:flex flex-shrink-0">
                         <div className="p-6 border-b border-slate-800">
                             <h1 className="text-xl font-bold text-white flex items-center gap-2"><Icons.PieChart className="w-8 h-8 text-blue-500" /><span>AdReportAI</span></h1>
-                            <p className="text-xs mt-2 text-slate-500 font-mono pl-10">Ver1.0</p>
+                            <p className="text-xs mt-2 text-slate-500 font-mono pl-10">Ver1.7</p>
                         </div>
                         <nav className="flex-1 p-4 overflow-y-auto">
                             <ul className="space-y-1">
@@ -748,7 +805,7 @@ ${userContext}
                                             </label>
                                             <label className={`flex items-center gap-2 cursor-pointer p-3 rounded-lg border transition-all ${mode === 'pachinko_no_cv' ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
                                                 <input type="radio" name="mode" value="pachinko_no_cv" checked={mode === 'pachinko_no_cv'} onChange={e => setMode(e.target.value)} className="text-blue-600" />
-                                                <div><span className="block text-sm font-bold text-slate-800">パチンコホール分析 (CVなし)</span><span className="block text-xs text-slate-500">IMP/CPM/CTR重視</span></div>
+                                                <div><span className="block text-sm font-bold text-slate-800">パチンコホール分析 (CVなし)</span><span className="block text-xs text-slate-500">Imp/CPM/CTR重視</span></div>
                                             </label>
                                         </div>
                                     </div>
