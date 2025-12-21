@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdReportAI Ver1.0 (Date Sort Fixed)</title>
+    <title>AdReportAI Ver1.0</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -478,23 +478,51 @@
             const handleDrop = async (e) => {
                 e.preventDefault();
                 const droppedFiles = Array.from(e.dataTransfer.files);
+                const newContents = {};
                 for (const file of droppedFiles) {
                     try {
                         const content = await FileParser.parse(file);
-                        setFileContents(prev => ({...prev, [file.name]: content}));
+                        newContents[file.name] = content;
                     } catch (error) { console.error(error); }
                 }
-                setFiles(prev => [...prev, ...droppedFiles]);
+                setFileContents(prev => ({...prev, ...newContents}));
+                setFiles(prev => {
+                    // ★ DATE SORT LOGIC (Applied Immediately on Upload)
+                    const combined = [...prev, ...droppedFiles];
+                    return combined.sort((a, b) => {
+                        const extractDate = (filename) => {
+                            let match = filename.match(/(\d{4})\D+(\d{1,2})/);
+                            if (!match) match = filename.match(/(\d{4})(\d{2})/);
+                            if (match) return parseInt(match[1]) * 100 + parseInt(match[2]);
+                            return 0;
+                        };
+                        return extractDate(b.name) - extractDate(a.name); // Descending (Newest first)
+                    });
+                });
             };
             const handleFileSelect = async (e) => {
                 const selectedFiles = Array.from(e.target.files);
+                const newContents = {};
                 for (const file of selectedFiles) {
                     try {
                         const content = await FileParser.parse(file);
-                        setFileContents(prev => ({...prev, [file.name]: content}));
+                        newContents[file.name] = content;
                     } catch (error) { console.error(error); }
                 }
-                setFiles(prev => [...prev, ...selectedFiles]);
+                setFileContents(prev => ({...prev, ...newContents}));
+                setFiles(prev => {
+                    // ★ DATE SORT LOGIC (Applied Immediately on Upload)
+                    const combined = [...prev, ...selectedFiles];
+                    return combined.sort((a, b) => {
+                        const extractDate = (filename) => {
+                            let match = filename.match(/(\d{4})\D+(\d{1,2})/);
+                            if (!match) match = filename.match(/(\d{4})(\d{2})/);
+                            if (match) return parseInt(match[1]) * 100 + parseInt(match[2]);
+                            return 0;
+                        };
+                        return extractDate(b.name) - extractDate(a.name); // Descending (Newest first)
+                    });
+                });
             };
             const removeFile = (idx) => setFiles(prev => prev.filter((_, i) => i !== idx));
             const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -515,34 +543,19 @@
                 setLoadingStates(prev => ({ ...prev, [sectionId]: true }));
                 try {
                     let rawData = "";
-                    // ★ DATE SORT LOGIC (Robust Fix for Single Digit Months)
+                    // ★ DATE SORT LOGIC (Double Check before sending)
                     const sortedFiles = [...files].sort((a, b) => {
                         const extractDate = (filename) => {
-                            // Pattern 1: Separated (e.g. 2025-9, 2025年10月, 2025.1)
-                            // Look for 4 digits (year), any non-digits, then 1 or 2 digits (month)
                             let match = filename.match(/(\d{4})\D+(\d{1,2})/);
-                            
-                            // Pattern 2: Continuous 6 digits (e.g. 202509, 202510)
-                            if (!match) {
-                                match = filename.match(/(\d{4})(\d{2})/);
-                            }
-
-                            if (match) {
-                                const year = parseInt(match[1]);
-                                const month = parseInt(match[2]);
-                                // Return integer YYYYMM for correct comparison
-                                // (e.g., 2025*100 + 9 = 202509 vs 2025*100 + 10 = 202510)
-                                return year * 100 + month;
-                            }
-                            return 0; // Default if no date found
+                            if (!match) match = filename.match(/(\d{4})(\d{2})/);
+                            if (match) return parseInt(match[1]) * 100 + parseInt(match[2]);
+                            return 0;
                         };
-                        // Sort Descending (Newest date first)
                         return extractDate(b.name) - extractDate(a.name);
                     });
 
                     sortedFiles.forEach((file, index) => {
                         if (fileContents[file.name]) {
-                            // Index 0 is the newest date (Main Target)
                             const role = index === 0 ? "【分析対象（最新・当月）レポート】" : "【比較対象（過去・前月）レポート】";
                             rawData += `\n\n=== FILE (${role}): ${file.name} ===\n${fileContents[file.name]}`;
                         }
@@ -585,11 +598,10 @@
 `;
                     let analysisFocus = "";
                     let graphFocus = "";
-                    // ★Deep Analysis: プロンプトを大幅に具体化し、深い分析を強制する
                     switch (sectionId) {
                         case 'summary': 
                             analysisFocus = "広告アカウント全体の「健康診断」レポートです。単なる数値報告ではなく、KPI達成状況に基づいた「評価（良/悪）」を明確に下してください。予算消化率、CPA/ROASの目標乖離、最も成果に貢献した媒体と足を引っ張った媒体の特定を行ってください。また、特筆すべき数値の変動（急増・急減）があればその要因を仮説立てて説明してください。"; 
-                            graphFocus = "「表示回数(value)」「クリック数(value2)」「CV数(value3)」の3つを表示する折れ線グラフ (Line)。左軸に表示回数、右軸にその他。"; 
+                            graphFocus = "「**最新レポートの日次推移**（日付ごと）で、表示回数(value)、クリック数(value2)、CV数(value3)の3軸折れ線グラフを作成してください。月合計ではなく、**1日ごとのデータ**をプロットしてください。」"; 
                             break;
                         case 'comparisonMoM': 
                             analysisFocus = "前月（または比較期間）との比較分析です。数値の増減（Diff）だけでなく、「なぜ増えた/減ったのか」を因数分解してください（例: CPAが高騰した要因は、CPCの上昇なのかCVRの低下なのか？）。季節要因、営業日数の違い、キャンペーンの有無、入札調整の影響などを考慮し、変化の本質的な理由を突き止めてください。"; 
@@ -634,20 +646,15 @@
 
                     let modeInstruction = "";
                     if (mode === 'general_cv') {
-                        // 修正: CVRを明記
                         modeInstruction = "【モード：他業種 (CVあり)】CV数、獲得率(CVR)、CPA（獲得単価）を最重要指標として分析してください。費用対効果を厳しく評価してください。";
                     } else if (mode === 'general_branding') {
-                        // 現状維持
                         modeInstruction = "【モード：他業種 (CVなし)】認知拡大が目的です。**獲得件数(CV)や獲得単価(CPA)への言及は避けてください。** 表示回数(Imp)、クリック数(Click)、クリック率(CTR)、クリック単価(CPC)、リーチ数を中心に評価してください。";
                     } else if (mode === 'pachinko') {
-                        // 修正: CVRの読み替えと、IMP/CTRへの意識を追加
                         modeInstruction = "【モード：パチンコホール分析（CVあり）】店舗集客型ビジネスの分析です。「CV」は「来店」「稼働」、「CVR」は「来店率」、「CPA」は「来店獲得単価」と読み替えてください。新台入替（New Machine）、特定日（Event Days）、週末などのパチンコ業界特有のイベントと数値の相関を強く意識してください。IMPやCTRなどの認知指標と合わせて、最終的な来店効果を重視して分析してください。";
                     } else if (mode === 'pachinko_no_cv') {
-                        // 修正: 店舗集客型ビジネスを明記
                         modeInstruction = "【モード：パチンコホール分析（CVなし）】あなたは店舗集客型ビジネス（エリアマーケティング）の専門家です。**店舗への来店コンバージョン(CV)や獲得単価(CPA)への言及は避けてください（計測していないため）。** 代わりに、**商圏内でのリーチ数（Imp）**、**認知獲得効率（CPM）**、**興味関心度（CTR, クリック数）**を最重要指標として評価してください。チラシ投函の代替手段として、どれだけ効率よくエリアユーザーに情報を届けられたか、という視点でポジティブに分析してください。";
                     }
 
-                    // ★Prompt Engineering: Deep Analysis Template
                     const prompt = `
 あなたはプロフェッショナルなWEB広告アナリストです。以下のデータを分析し、JSON形式で出力してください。
 **【分析対象セクション】**: ${sectionConfig.title}
@@ -890,5 +897,4 @@ ${userContext}
         root.render(<App />);
     </script>
 </body>
-
 </html>
